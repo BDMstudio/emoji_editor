@@ -21,7 +21,7 @@ export default function EmojiContainer({ onEmojiSelect }: EmojiContainerProps) {
   }
 
   return (
-    <section className="emoji-container bg-panel border border-borderPanel rounded-xl p-4 shadow-[0_4px_18px_rgba(0,0,0,0.22)] mt-3">
+    <section className="emoji-container bg-panel border border-borderPanel rounded-xl p-4 shadow-[0_4px_18px_rgba(0,0,0,0.22)] h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-text">表情选择</h2>
@@ -31,7 +31,7 @@ export default function EmojiContainer({ onEmojiSelect }: EmojiContainerProps) {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 flex-shrink-0">
         {emojiData.map((category, index) => (
           <button
             key={index}
@@ -50,7 +50,7 @@ export default function EmojiContainer({ onEmojiSelect }: EmojiContainerProps) {
       </div>
 
       {/* Emoji Grid */}
-      <div className="bg-button/30 rounded-lg p-4 max-h-48 overflow-y-auto">
+      <div className="bg-button/30 rounded-lg p-4 flex-1 overflow-y-auto">
         <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-12 xl:grid-cols-12 gap-2">
           {emojiData[activeCategory].emojis.map((emoji, index) => (
             <button
@@ -66,7 +66,7 @@ export default function EmojiContainer({ onEmojiSelect }: EmojiContainerProps) {
       </div>
 
       {/* Footer Info */}
-      <div className="text-xs text-muted mt-3 text-center">
+      <div className="text-xs text-muted mt-3 text-center flex-shrink-0">
         当前分类：{emojiData[activeCategory].label} 
         <span className="mx-2">•</span>
         共 {emojiData[activeCategory].emojis.length} 个表情

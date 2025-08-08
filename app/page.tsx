@@ -29,10 +29,13 @@ export default function Home() {
   const [previewEnabled, setPreviewEnabled] = useState(false)
   const [copyStatus, setCopyStatus] = useState(false)
   const [editorWidth, setEditorWidth] = useState(50) // percentage
+  const [editorHeight, setEditorHeight] = useState(85) // percentage of main area
   const [isLargeScreen, setIsLargeScreen] = useState(true)
   const editorRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const mainContainerRef = useRef<HTMLDivElement>(null)
   const [isResizing, setIsResizing] = useState(false)
+  const [isVerticalResizing, setIsVerticalResizing] = useState(false)
 
   // Initialize content with legacy keycap fix on mount
   useEffect(() => {
@@ -101,32 +104,48 @@ export default function Home() {
     setPreviewEnabled(!previewEnabled)
   }
 
-  // Resize handlers
+  // Horizontal resize handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true)
     e.preventDefault()
   }
 
+  // Vertical resize handlers
+  const handleVerticalMouseDown = (e: React.MouseEvent) => {
+    setIsVerticalResizing(true)
+    e.preventDefault()
+  }
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return
-      
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100
-      
-      // Limit width between 20% and 80%
-      const clampedWidth = Math.min(80, Math.max(20, newWidth))
-      setEditorWidth(clampedWidth)
+      if (isResizing && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100
+        
+        // Limit width between 20% and 80%
+        const clampedWidth = Math.min(80, Math.max(20, newWidth))
+        setEditorWidth(clampedWidth)
+      }
+
+      if (isVerticalResizing && mainContainerRef.current) {
+        const containerRect = mainContainerRef.current.getBoundingClientRect()
+        const newHeight = ((e.clientY - containerRect.top) / containerRect.height) * 100
+        
+        // Limit height between 40% and 95%
+        const clampedHeight = Math.min(95, Math.max(40, newHeight))
+        setEditorHeight(clampedHeight)
+      }
     }
 
     const handleMouseUp = () => {
       setIsResizing(false)
+      setIsVerticalResizing(false)
     }
 
-    if (isResizing) {
+    if (isResizing || isVerticalResizing) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = 'col-resize'
+      document.body.style.cursor = isResizing ? 'col-resize' : 'row-resize'
       document.body.style.userSelect = 'none'
     }
 
@@ -136,12 +155,12 @@ export default function Home() {
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isResizing])
+  }, [isResizing, isVerticalResizing])
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen flex flex-col">
       <ScriptLoader />
-      <header className="flex items-center justify-between mb-3">
+      <header className="flex items-center justify-between mb-3 flex-shrink-0">
         <h1 className="text-lg font-semibold">
           Emoji 适配可编辑工具{' '}
           <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-accent/20 text-accent ml-2">
@@ -152,10 +171,14 @@ export default function Home() {
       </header>
 
       <div 
-        ref={containerRef}
-        className="flex flex-col lg:flex-row gap-3 relative"
-        style={{ height: 'calc(100vh - 200px)' }}
+        ref={mainContainerRef}
+        className="flex-1 flex flex-col gap-3 overflow-hidden"
       >
+        <div 
+          ref={containerRef}
+          className="flex flex-col lg:flex-row gap-3 relative overflow-hidden"
+          style={{ height: `${editorHeight}%` }}
+        >
         {/* Editor Panel */}
         <section 
           className="bg-panel border border-borderPanel rounded-xl p-3 shadow-[0_4px_18px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden"
@@ -218,10 +241,24 @@ export default function Home() {
             </div>
           )}
         </section>
-      </div>
+        </div>
 
-      {/* Emoji Container */}
-      <EmojiContainer onEmojiSelect={handleEmojiSelect} />
+        {/* Vertical Resize Handle */}
+        <div 
+          className="h-3 bg-transparent hover:bg-ring/20 cursor-row-resize transition-all duration-200 flex-shrink-0 relative group flex items-center justify-center"
+          onMouseDown={handleVerticalMouseDown}
+        >
+          {/* Extended clickable area */}
+          <div className="absolute inset-0 -my-4 w-full"></div>
+          {/* Visual indicator */}
+          <div className="w-12 h-1 bg-ring/20 group-hover:bg-ring/40 transition-colors duration-200 rounded-full"></div>
+        </div>
+
+        {/* Emoji Container */}
+        <div style={{ height: `${100 - editorHeight}%`, minHeight: '100px' }} className="overflow-hidden">
+          <EmojiContainer onEmojiSelect={handleEmojiSelect} />
+        </div>
+      </div>
     </main>
   )
 }
