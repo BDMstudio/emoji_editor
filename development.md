@@ -6,6 +6,9 @@ Emoji Editor 是一个支持原生 Emoji 编辑、Twemoji 预览与多格式导�
 
 主要能力：
 - 文本编辑（contentEditable，原生 Emoji）
+- 智能 Emoji 选择器（6大分类，光标位置插入）
+- 可调节布局系统（水平/垂直双向调节，布局持久化）
+- 主题系统（明暗主题切换，系统偏好检测）
 - 文本修复/转换（旧式 Keycap 修复、段首数字 → Keycap）
 - Twemoji 预览（不影响编辑区的原生 Emoji）
 - 多格式导出：可编辑 HTML、Twemoji 快照 HTML、Markdown、PDF（直接保存）
@@ -35,17 +38,19 @@ Emoji Editor 是一个支持原生 Emoji 编辑、Twemoji 预览与多格式导�
   - page.tsx：主页，组装工具栏、编辑器、预览、导出按钮与 Emoji 容器
   - globals.css：全局样式/主题/打印样式/PDF 容器样式
 - components/
-  - Editor.tsx：contentEditable 编辑器
+  - Editor.tsx：contentEditable 编辑器（支持聚焦态样式）
   - Preview.tsx：Twemoji 预览（仅在开启预览时解析）
   - Toolbar.tsx：文本转换与复制/清空
   - ExportButtons.tsx：导出按钮与状态管理
   - ScriptLoader.tsx：在客户端动态加载 Twemoji 与 html2pdf.js（CDN）
-  - ThemeProvider/ThemeToggle.tsx：明暗主题
-  - EmojiContainer.tsx：Emoji 快选容器（在光标处插入）
+  - ThemeProvider.tsx：主题上下文提供者（支持系统偏好检测）
+  - ThemeToggle.tsx：明暗主题切换按钮
+  - EmojiContainer.tsx：Emoji 快选容器（6大分类，光标位置插入）
 - lib/
   - utils.ts：文本转换与下载工具函数
   - export.ts：导出实现（HTML/Markdown/PDF）
-  - emojiData.ts：Emoji 数据（若使用）
+  - emojiData.ts：分类 Emoji 数据集合
+  - theme.ts：主题管理工具函数
 - emoji_editor.html：静态单文件版（纯 HTML/CSS/JS）
 - README.md：项目概览
 - development.md：本开发文档
@@ -62,13 +67,16 @@ Emoji Editor 是一个支持原生 Emoji 编辑、Twemoji 预览与多格式导�
 ### 1) 文本编辑与转换
 - Editor.tsx：
   - 使用 contentEditable + innerText 双向同步，避免粘贴 HTML 污染
-  - 聚焦态样式 .editor-focus
+  - 聚焦态样式 .editor-focus，支持自动文本方向检测
+  - 防循环更新机制（isInternalUpdate ref）
 - utils.ts：
-  - fixLegacyKeycaps：将旧式“digit + U+20E3”替换为“digit + VS16 + U+20E3”
-  - listDigitsToKeycap：将行首 1-9 的“1.”、“1、”、“1-”、“1)”等转为 Keycap 表示
+  - fixLegacyKeycaps：将旧式"digit + U+20E3"替换为"digit + VS16 + U+20E3"
+  - listDigitsToKeycap：将行首 1-9 的"1."、"1、"、"1-"、"1)"等转为 Keycap 表示
 - page.tsx：
   - 默认文本 DEFAULT_CONTENT 首次挂载时做一次 Keycap 修复
   - EmojiContainer 支持在光标处插入 Emoji
+  - 双向布局调节（水平/垂直），支持 localStorage 持久化
+  - 响应式布局检测（≥1024px 为大屏）
 
 ### 2) Twemoji 预览（不修改编辑区）
 - Preview.tsx：
@@ -96,7 +104,23 @@ Emoji Editor 是一个支持原生 Emoji 编辑、Twemoji 预览与多格式导�
 为什么使用 PNG 而不是 SVG？
 - html2canvas 对跨域 SVG 渲染在部分浏览器存在限制，容易导致画布污染或空白输出；PNG 更稳健
 
-### 4) 静态版（emoji_editor.html）
+### 4) 主题系统与布局管理
+- ThemeProvider.tsx：
+  - 基于 React Context 的主题状态管理
+  - 支持系统偏好检测（prefers-color-scheme）
+  - localStorage 持久化主题选择，防止水合不匹配
+- 布局调节系统：
+  - 水平调节：editorWidth 状态（20%-80%）
+  - 垂直调节：editorHeight 状态（40%-95%）
+  - 调节手柄：微妙的视觉提示，hover 时显示
+  - 持久化：localStorage 保存布局比例
+- EmojiContainer.tsx：
+  - 6大分类：表情与人物、动物与自然、食物与饮料、活动、旅行与地点、符号
+  - 响应式网格布局（8-12列）
+  - 分类标签导航，当前分类高亮
+  - 使用 DOM Selection API 实现光标位置插入
+
+### 5) 静态版（emoji_editor.html）
 - 保持与组件版一致的导出能力
 - 预览/快照/打印（若启用）均统一 Twemoji CDN 前缀，避免路径变化导致资源 404
 - 若本地使用，建议通过 HTTP 服务打开（例如 VSCode Live Server），避免 file:// 环境下的权限问题
@@ -133,11 +157,22 @@ Emoji Editor 是一个支持原生 Emoji 编辑、Twemoji 预览与多格式导�
 - 部署：常规 Next.js 静态/自托管部署流程
 
 ## 待办（TODO）
-- [ ] 增加“纯文本 PDF（不依赖 Twemoji CDN）”兜底导出
+- [ ] 增加"纯文本 PDF（不依赖 Twemoji CDN）"兜底导出
 - [ ] 支持 0/#/* keycap 转换
 - [ ] 提供本地 Twemoji 资源与开关（离线模式）
 - [ ] 为 export.ts 增加更完善的错误提示与日志开关
+- [ ] 添加撤销/重做功能
+- [ ] 实现键盘快捷键支持
+- [ ] 虚拟滚动优化（大量 Emoji 渲染）
+- [ ] 拖拽文件导入功能
 
 ## 变更记录（近期）
-- PDF 导出：从 SVG 改为 PNG，并添加 CORS 与图片加载等待，解决空白 PDF 与跨域渲染问题
-- 统一 Twemoji CDN 基础路径，预览/快照/导出一致
+- **v2.0 主要更新**：
+  - 新增主题系统：明暗主题切换，系统偏好检测，localStorage 持久化
+  - 新增智能 Emoji 选择器：6大分类，光标位置插入，响应式布局
+  - 新增双向布局调节：水平/垂直调节手柄，比例持久化
+  - 优化组件架构：ThemeProvider, EmojiContainer, 改进的 Editor
+  - 修复 Emoji 显示：移除不支持的字符，添加字体后备
+- **v1.x 基础功能**：
+  - PDF 导出：从 SVG 改为 PNG，并添加 CORS 与图片加载等待，解决空白 PDF 与跨域渲染问题
+  - 统一 Twemoji CDN 基础路径，预览/快照/导出一致
