@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Emoji 适配可编辑工具</title>
+  <!-- Twemoji（用于预览与快照导出；离线可改用本地文件） -->
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root { --bg:#0f1115; --panel:#151924; --muted:#a7b0c0; --ring:#3b82f6; --text:#e6ebf5; --accent:#22c55e; }
+    *{box-sizing:border-box}
+    body{ margin:0; padding:16px; background:var(--bg); color:var(--text);
+      font-family: ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",
+                   "PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif; }
+    h1{font-size:18px;margin:0 0 12px}
+    .wrap{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .panel{ background:var(--panel); border:1px solid #22283a; border-radius:12px; padding:12px; box-shadow:0 4px 18px rgba(0,0,0,.22);}
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px}
+    button{ background:#1d2332; color:var(--text); border:1px solid #2a3248; border-radius:10px; padding:8px 12px; cursor:pointer; font-size:14px;}
+    button:hover{border-color:var(--ring)}
+    button.primary{background:#1e293b;border-color:var(--ring)}
+    .editor,.preview{ min-height:62vh; max-height:75vh; overflow:auto; padding:12px; border-radius:10px; border:1px solid #26304a; outline:none; background:#0f1320;
+      line-height:1.55; font-size:16px; white-space:pre-wrap;
+      font-family: inherit,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla","EmojiOne Color"; }
+    .editor:focus{box-shadow:0 0 0 2px var(--ring) inset}
+    .muted{color:var(--muted); font-size:12px}
+    .hidden{display:none}
+    .badge{padding:2px 8px;border-radius:999px;background:#13202b;color:#6de39b;font-size:12px}
+    /* Twemoji 图片在预览中的样式 */
+    .preview img.emoji{height:1em;width:1em;margin:0 .05em;vertical-align:-0.1em;}
+    /* 打印用样式 */
+    @media print { body { background:#fff; } .wrap { display:block; } .panel{ box-shadow:none; } }
+  </style>
+  <!-- html2pdf.js for PDF export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <h1>Emoji 适配可编辑工具 <span class="badge">导出：HTML / HTML(快照) / MD / PDF</span></h1>
+  <div class="wrap">
+    <section class="panel">
+      <div class="toolbar">
+        <button id="btn-fix" class="primary">修复旧式 Keycap（1⃣→1️⃣）</button>
+        <button id="btn-list">段首数字→Keycap（1./1、/1-）</button>
+        <button id="btn-copy">复制文本</button>
+        <button id="btn-clear">清空</button>
+      </div>
+      <div id="editor" class="editor" contenteditable="true" spellcheck="false" dir="auto">
+2025 Zhangjiajie Travel Guide Is Here!!!||
+The 9 Must-See Spots in Zhangjiajie❗❗Read Before You Go❗
+📍Must-see attractions:
+1️⃣ Zhangjiajie National Forest Park
+2️⃣ Tianmen Mountain National Forest Park
+3️⃣ Wulingyuan Scenic Area
+4️⃣ Baofeng Lake
+5️⃣ Huanglong Cave
+6️⃣ Zhangjiajie Grand Canyon Glass Bridge
+7️⃣ Furong Town
+8️⃣ Phoenix Ancient Town (Fenghuang)
+9️⃣ Tianmen Cave
+      </div>
+      <div class="muted">提示：先点“修复旧式 Keycap”，必要时再把段首数字转换为 1️⃣2️⃣3️⃣。</div>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <button id="btn-toggle">开启 Twemoji 预览</button>
+        <button id="btn-exp-html">导出：可编辑 HTML</button>
+        <button id="btn-exp-html-tw">导出：展示一致 HTML（Twemoji 快照）</button>
+        <button id="btn-exp-md">导出：Markdown (.md)</button>
+        <button id="btn-print">保存为 PDF</button>
+      </div>
+      <div id="preview" class="preview hidden" aria-live="polite"></div>
+      <div id="previewHint" class="muted">未开启预览（为避免把文字替换成图片，编辑区保持原生 emoji）。</div>
+    </section>
+  </div>
+
+  <script>
+    const editor   = document.getElementById('editor');
+    const preview  = document.getElementById('preview');
+    const btnFix   = document.getElementById('btn-fix');
+    const btnList  = document.getElementById('btn-list');
+    const btnCopy  = document.getElementById('btn-copy');
+    const btnClear = document.getElementById('btn-clear');
+    const btnToggle= document.getElementById('btn-toggle');
+    const btnExpHTML = document.getElementById('btn-exp-html');
+    const btnExpHTMLTw = document.getElementById('btn-exp-html-tw');
+    const btnExpMD  = document.getElementById('btn-exp-md');
+    const btnPrint  = document.getElementById('btn-print');
+    const hint     = document.getElementById('previewHint');
+
+    // 工具函数
+    function fixLegacyKeycaps(str){ return str.replace(/([0-9])\u20E3/g, '$1\uFE0F\u20E3'); }
+    function listDigitsToKeycap(str){ return str.replace(/(^|\n)([1-9])(?:[.\-、\)]?\s)/g, (_, p, d) => `${p}${d}\uFE0F\u20E3 `); }
+    function escapeHTML(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function download(filename, content, mime='text/plain'){
+      const blob = new Blob([content], {type: mime + ';charset=utf-8'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    }
+
+    // 预览（Twemoji）
+    let previewOn = false;
+    function updatePreview(){
+      if(!previewOn) return;
+      // 用 innerText 防止用户粘贴的 HTML 干扰
+      preview.textContent = editor.innerText;
+      if(window.twemoji){
+        twemoji.parse(preview, {base:'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/', folder:'svg', ext:'.svg'});
+      }
+    }
+
+    // 事件：清洗 & 转换
+    btnFix.addEventListener('click', () => { editor.innerText = fixLegacyKeycaps(editor.innerText); updatePreview(); });
+    btnList.addEventListener('click', () => { editor.innerText = listDigitsToKeycap(editor.innerText); updatePreview(); });
+    btnCopy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(editor.innerText);
+        btnCopy.textContent='已复制 ✅'; setTimeout(()=>btnCopy.textContent='复制文本',1200);
+      } catch(e){ alert('复制失败：'+e); }
+    });
+    btnClear.addEventListener('click', () => { editor.innerText = ''; updatePreview(); });
+
+    btnToggle.addEventListener('click', () => {
+      previewOn = !previewOn;
+      preview.classList.toggle('hidden', !previewOn);
+      hint.classList.toggle('hidden',  previewOn);
+      btnToggle.textContent = previewOn ? '关闭 Twemoji 预览' : '开启 Twemoji 预览';
+      updatePreview();
+    });
+    editor.addEventListener('input', updatePreview);
+
+    // 导出：可编辑 HTML（原生 emoji）
+    btnExpHTML.addEventListener('click', () => {
+      const content = editor.innerText; // 纯文本，保证干净
+      const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Document (Editable, Native Emoji)</title>
+<style>
+  body{margin:24px;font-family: ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",
+        "PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif;}
+  .doc{white-space:pre-wrap;line-height:1.6;font-size:16px}
+  .doc{font-family: inherit,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla","EmojiOne Color";}
+</style></head><body>
+<div class="doc" contenteditable="true" dir="auto">${escapeHTML(content)}</div>
+</body></html>`;
+      download('document-editable.html', html, 'text/html');
+    });
+
+    // 导出：展示一致 HTML（Twemoji 快照，emoji 已转为 <img>）
+    btnExpHTMLTw.addEventListener('click', () => {
+      // 构建快照容器
+      const temp = document.createElement('div');
+      temp.textContent = editor.innerText;
+      if(window.twemoji){ twemoji.parse(temp, {base:'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/', folder:'svg', ext:'.svg'}); }
+      const snapshot = temp.innerHTML;
+      const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Document (Twemoji Snapshot)</title>
+<style>
+  body{margin:24px;font-family: ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",
+        "PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif;}
+  .doc{white-space:pre-wrap;line-height:1.6;font-size:16px}
+  .doc img.emoji{height:1em;width:1em;margin:0 .05em;vertical-align:-0.1em;}
+</style></head><body>
+<div class="doc" dir="auto">${snapshot}</div>
+<!-- 注：此版本为展示一致的快照，emoji 为 <img>；需要联网访问 jsDelivr 的 Twemoji 资源。 -->
+</body></html>`;
+      download('document-twemoji.html', html, 'text/html');
+    });
+
+    // 导出：Markdown
+    btnExpMD.addEventListener('click', () => {
+      const md = editor.innerText; // 已是 UTF-8 文本 + emoji
+      download('document.md', md, 'text/markdown');
+    });
+
+    // 保存为 PDF（Twemoji 快照 -> 直接生成并下载 PDF）
+    btnPrint.addEventListener('click', async () => {
+      if(!window.html2pdf){
+        alert('PDF 组件加载失败，请联网后重试');
+        return;
+      }
+      
+      // 显示加载提示
+      btnPrint.textContent = '生成中...';
+      btnPrint.disabled = true;
+      
+      try {
+        // 1) 创建容器用于PDF生成
+        const container = document.createElement('div');
+        container.className = 'pdf-container';
+        
+        // 设置容器样式 - 使用固定定位并暂时可见
+        container.style.cssText = `
+          position: fixed;
+          left: -10000px;
+          top: 0;
+          width: 794px;
+          background: #ffffff;
+          color: #000000;
+          padding: 40px;
+          line-height: 1.8;
+          font-size: 16px;
+          white-space: pre-wrap;
+          font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", 
+                       "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+          visibility: visible;
+          opacity: 1;
+          z-index: 999999;
+          box-sizing: border-box;
+        `;
+        
+        // 设置内容
+        container.textContent = editor.innerText;
+        document.body.appendChild(container);
+        
+        // 2) 解析emoji为图片
+        if(window.twemoji){
+          twemoji.parse(container, {
+            base: 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/',
+            folder: '72x72', 
+            ext: '.png',
+            attributes: () => ({ 
+              crossorigin: 'anonymous',
+              style: 'height: 1.2em; width: 1.2em; margin: 0 0.05em; vertical-align: -0.2em;'
+            })
+          });
+        }
+        
+        // 3) 等待所有图片加载完成
+        const imgs = container.querySelectorAll('img');
+        if(imgs.length > 0) {
+          await Promise.all(Array.from(imgs).map(img => {
+            return new Promise((resolve) => {
+              if(img.complete && img.naturalHeight !== 0) {
+                resolve();
+              } else {
+                img.addEventListener('load', resolve, {once: true});
+                img.addEventListener('error', resolve, {once: true});
+                // 设置超时，避免无限等待
+                setTimeout(resolve, 3000);
+              }
+            });
+          }));
+        }
+        
+        // 4) 将容器移到可见区域进行捕获
+        container.style.left = '0';
+        container.style.top = '0';
+        
+        // 等待浏览器渲染
+        await new Promise(resolve => requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        }));
+        
+        // 5) 配置并生成PDF
+        const opt = {
+          margin: [0.5, 0.5, 0.5, 0.5],  // 上右下左边距（英寸）
+          filename: 'emoji_document.pdf',
+          image: { 
+            type: 'jpeg', 
+            quality: 0.95 
+          },
+          html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            allowTaint: false,
+            foreignObjectRendering: false,
+            windowWidth: 850,  // 设置窗口宽度确保正确渲染
+            windowHeight: 1200,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0,
+            y: 0,
+            width: 794,  // 明确指定捕获宽度
+            height: container.scrollHeight  // 使用实际高度
+          },
+          jsPDF: { 
+            unit: 'in', 
+            format: 'a4', 
+            orientation: 'portrait',
+            compress: true
+          },
+          pagebreak: { 
+            mode: ['avoid-all', 'css', 'legacy'] 
+          }
+        };
+        
+        // 生成并下载PDF
+        await html2pdf().from(container).set(opt).save();
+        
+        // 清理
+        container.remove();
+        
+      } catch(error) {
+        console.error('PDF生成失败:', error);
+        alert('PDF生成失败：' + error.message);
+      } finally {
+        // 恢复按钮状态
+        btnPrint.textContent = '保存为 PDF';
+        btnPrint.disabled = false;
+      }
+    });
+
+    // 初始轻度修复
+    editor.innerText = fixLegacyKeycaps(editor.innerText);
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme colors */
+    --color-bg: #ffffff;
+    --color-panel: #f8fafc;
+    --color-muted: #64748b;
+    --color-ring: #3b82f6;
+    --color-text: #1e293b;
+    --color-accent: #22c55e;
+    --color-editor: #ffffff;
+    --color-button: #f1f5f9;
+    --color-button-border: #cbd5e1;
+    --color-button-primary: #e2e8f0;
+    --color-border-panel: #e2e8f0;
+    --color-border-editor: #cbd5e1;
+  }
+
+  .dark {
+    /* Dark theme colors */
+    --color-bg: #0f1115;
+    --color-panel: #151924;
+    --color-muted: #a7b0c0;
+    --color-ring: #3b82f6;
+    --color-text: #e6ebf5;
+    --color-accent: #22c55e;
+    --color-editor: #0f1320;
+    --color-button: #1d2332;
+    --color-button-border: #2a3248;
+    --color-button-primary: #1e293b;
+    --color-border-panel: #22283a;
+    --color-border-editor: #26304a;
+  }
+
+  * {
+    box-sizing: border-box;
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  }
+
+  html {
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+  }
+
+  body {
+    @apply bg-bg text-text;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-panel rounded;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-buttonBorder rounded hover:bg-ring;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  /* Print styles */
+  @media print {
+    * {
+      transition: none !important;
+    }
+    
+    body {
+      background: white !important;
+      color: black !important;
+    }
+    
+    .no-print {
+      display: none !important;
+    }
+  }
+}
+
+@layer components {
+  /* Twemoji image styles */
+  .emoji {
+    height: 1em;
+    width: 1em;
+    margin: 0 0.05em;
+    vertical-align: -0.1em;
+  }
+
+  /* Emoji container specific styles */
+  .emoji-container {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", "EmojiOne Color", sans-serif;
+  }
+
+  .emoji-button {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", "EmojiOne Color", sans-serif;
+    font-feature-settings: "liga" off;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Editor focus state */
+  .editor-focus {
+    box-shadow: 0 0 0 2px theme('colors.ring') inset;
+  }
+
+  /* PDF container styles for export */
+  .pdf-container {
+    background: #ffffff;
+    color: #000000;
+    padding: 40px;
+    line-height: 1.8;
+    font-size: 16px;
+    white-space: pre-wrap;
+  }
+
+  .pdf-container img.emoji {
+    height: 1.2em;
+    width: 1.2em;
+    margin: 0 0.05em;
+    vertical-align: -0.2em;
+  }
+}
