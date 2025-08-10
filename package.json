@@ -5,8 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "export": "next export",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "serve:html": "node server-standalone.js",
+    "serve:static": "node server-next-static.js",
+    "build:standalone": "npm run build && npm run export",
+    "pack:win": "npx pkg -t node18-win-x64 -o dist/emoji-editor-win server-next-static.js",
+    "pack:all": "npx pkg -t node18-win-x64,node18-linux-x64,node18-macos-x64 -o dist/emoji-editor server-next-static.js"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -16,6 +22,7 @@
     "html2pdf.js": "^0.10.1"
   },
   "devDependencies": {
+    "pkg": "^5.8.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -23,5 +30,20 @@
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5"
+  },
+  "bin": {
+    "emoji-editor-standalone": "server-standalone.js"
+  },
+  "pkg": {
+    "assets": [
+      "out/**/*",
+      "public/**/*",
+      "server-next-static.js"
+    ],
+    "scripts": [
+      "server-next-static.js"
+    ],
+    "targets": ["node18-win-x64", "node18-macos-x64", "node18-linux-x64"],
+    "outputPath": "dist"
   }
 }

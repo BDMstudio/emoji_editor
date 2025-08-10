@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Output a fully static site into ./out for packaging into the standalone executable
+  output: 'export',
   images: {
     remotePatterns: [
       {
